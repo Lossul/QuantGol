@@ -1,60 +1,51 @@
 # QuantGol
 
-QuantGol is a live football intelligence dashboard with:
-
-- real-time match event streaming
-- tactical visualization (momentum/activity/possession)
-- match finder (trending + search)
-- AI analyst chat and one-shot insight generation
-
-The project is split into:
-
-- `frontend/`: Next.js (App Router) + React + TypeScript + Tailwind + Recharts
-- `backend/`: Django + Django REST Framework + SQLite + Gemini integration
+A football intelligence dashboard with live match tracking, real tactical statistics, interactive visualizations, and an AI analyst.
 
 ---
 
-## Tech Stack
+## What it does
 
-### Frontend
+- **Match search** — search any team across live fixtures (football-data.org) and the full StatsBomb historical dataset
+- **Live dashboard** — real-time event stream with momentum chart, possession timeline, shot map, and xG chart
+- **Real stats** — shots, possession, fouls, xG from official StatsBomb open data for historical matches; live stats from API-Football for recent fixtures
+- **AI analyst** — ask tactical questions about any match; powered by Groq → Gemini → local fallback
+- **Deep analytics** — shot map, xG timeline, pass network, and pressure counts for StatsBomb matches
+- **Player stats** — per-player shots, goals, xG, passes, and pressures
 
-- Next.js `16.2.1`
-- React `19.2.4`
-- TypeScript
-- Tailwind CSS 4
-- Recharts
-- Lucide icons
+---
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Frontend | Next.js, React 19, TypeScript, Tailwind CSS 4, Recharts |
+| Backend | Django 5, Django REST Framework, SQLite (local) / Postgres (prod) |
+| Data — live | football-data.org (scores + fixtures) |
+| Data — historical | StatsBomb Open Data (full event-level stats) |
+| Data — real-time stats | API-Football free tier (shots/possession for live/recent) |
+| AI | Groq (primary) → Gemini (fallback) → local rule-based (offline fallback) |
+
+---
+
+## Quick start
 
 ### Backend
-
-- Django 5.x style project
-- Django REST Framework
-- `django-cors-headers`
-- SQLite (default local DB)
-- `python-dotenv` for env loading
-- `google-genai` for AI responses
-- football-data.org (fixtures/search) + optional custom providers
-
----
-
-## Quick Start
-
-## 1) Backend setup
 
 ```bash
 cd backend
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
-python3 manage.py migrate
-python3 manage.py sync_matches --competition PL PD --days 21
-python3 manage.py runserver
+cp .env.example .env           # then fill in your keys (see below)
+python manage.py migrate
+python manage.py sync_matches --competition PL PD CL --days 14
+python manage.py runserver
 ```
 
-Backend runs at `http://127.0.0.1:8000`.
+Runs at `http://127.0.0.1:8000`.
 
-## 2) Frontend setup
+### Frontend
 
 ```bash
 cd frontend
@@ -62,125 +53,171 @@ npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:3000`.
-
-Set `NEXT_PUBLIC_API_BASE_URL` to your backend origin if needed.
+Runs at `http://localhost:3000`.
 
 ---
 
-## Environment Variables
+## API keys
 
-Main backend variables are defined in `backend/.env.example`:
+Copy `backend/.env.example` to `backend/.env` and fill in:
 
-- `FOOTBALL_DATA_API_KEY`: football-data.org key (fixtures + search)
-- `LIVE_FEED_MODE`: `demo` or `external`
-- `LIVE_FEED_ENDPOINT` (+ auth vars): optional live event provider
-- `LIVE_MATCH_SEARCH_ENDPOINT`: optional external search endpoint
-- `MATCH_STATS_ENDPOINT` (+ auth vars): optional official box stats provider
-- `GOOGLE_API_KEY` / `GEMINI_API_KEY`: Gemini API key
-- `GEMINI_MODEL`: Gemini model id (default `gemini-1.5-flash`)
+| Variable | Where to get it | Required? |
+|---|---|---|
+| `FOOTBALL_DATA_API_KEY` | [football-data.org/client/register](https://www.football-data.org/client/register) — free | Yes |
+| `GROQ_API_KEY` | [console.groq.com/keys](https://console.groq.com/keys) — free | Yes (AI) |
+| `GOOGLE_API_KEY` | [aistudio.google.com](https://aistudio.google.com) — free | Optional (AI fallback) |
+| `API_FOOTBALL_KEY` | [dashboard.api-football.com](https://dashboard.api-football.com) — free, 100 req/day | Optional (live stats) |
+| `BZZOIRO_API_TOKEN` | Bzzoiro Sports API | Optional (stats fallback) |
 
----
-
-## Core API Endpoints
-
-All API routes are under `/api`.
-
-- `GET /api/matches/`
-- `GET /api/matches/trending/`
-- `GET /api/matches/search/?query=...&date=...`
-- `GET /api/matches/{match_id}/`
-- `GET /api/matches/{match_id}/stats/`
-- `GET /api/events/?match_id=...&limit=...`
-- `GET /api/stream/{match_id}/` (SSE)
-- `GET /api/feed-status/`
-- `GET /api/ai-status/`
-- `POST /api/analyze/`
-- `POST /api/analyze-tactics/`
+The app runs without AI keys — it falls back gracefully. StatsBomb data requires no key at all.
 
 ---
 
-## Data Behavior Notes
+## How data works
 
-- Scores (`home_score`/`away_score`) are persisted on `Match`.
-- For football-data completed matches, score is treated as official.
-- Shots/fouls/possession for completed football-data matches require an official stats provider (`MATCH_STATS_ENDPOINT`), otherwise stats are marked unavailable.
-- SSE streams emit one event about every 3 seconds in demo mode and persist events.
+### Historical matches (StatsBomb)
 
----
+Search any team name — results include every match in the StatsBomb open dataset (~3,800 matches across La Liga, Champions League, Premier League, World Cup, Euros, and more).
 
-## Management Commands
+Click any result to open full stats:
+- Shot map with real xG values
+- xG timeline
+- Possession (derived from real event data)
+- Pass network
+- Per-player stats
 
-From `backend/`:
+**No import command needed.** The index is built automatically on first search and cached to disk.
 
-- Seed demo/API-backed fixtures:
-  - `python3 manage.py seed_matches`
-- Sync fixtures from football-data.org:
-  - `python3 manage.py sync_matches --competition PL PD --days 21`
-- Import StatsBomb Open Data (historical deep analytics):
-  - `python3 manage.py import_statsbomb --competition-id 2 --season-id 44 --limit 50`
-    - Example above is a StatsBomb competition/season pair (see StatsBomb open-data repo for ids).
-  - Imported matches appear as `SB-<id>` and unlock:
-    - real shot map data (`statsbomb_xg`)
-    - xG timeline
-    - pass network
-    - pressures
+First search on a fresh install takes ~30–60 seconds while the index downloads. Every search after that is instant.
 
----
+### Live / recent matches (football-data.org)
 
-## AI Analyst Troubleshooting
+Covers 12 top competitions on the free tier (Premier League, La Liga, Bundesliga, Serie A, Ligue 1, Champions League, World Cup, Euros, and more).
 
-If AI responses fail:
+Scores are real. Detailed stats (shots, possession, fouls) are available for fixtures within ~2 days via API-Football.
 
-1. check backend health: `GET /api/ai-status/`
-2. verify `GOOGLE_API_KEY`/`GEMINI_API_KEY` in `backend/.env`
-3. restart backend after env changes
+### Live feed mode
+
+Set `LIVE_FEED_MODE=demo` to use the built-in simulated event stream (default). Set to `external` and provide `LIVE_FEED_ENDPOINT` to connect a real live data provider.
 
 ---
 
-## Current Dev-Safety Defaults
+## Environment variables reference
 
-This repo is currently configured for local development convenience:
+```env
+# football-data.org — fixtures, scores, search
+FOOTBALL_DATA_API_KEY=
 
-- `DEBUG=True`
-- `ALLOWED_HOSTS=["*"]`
-- `CORS_ALLOW_ALL_ORIGINS=True`
+# AI — Groq is primary, Gemini is fallback
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.1-8b-instant
+GOOGLE_API_KEY=
+GEMINI_MODEL=gemini-1.5-flash
+AI_PROVIDER_ORDER=groq,gemini
 
-Harden these before production deployment.
+# Live stats for recent/live matches (free tier, 100 req/day)
+API_FOOTBALL_KEY=
+
+# Live event feed
+LIVE_FEED_MODE=demo                # demo | external
+LIVE_FEED_ENDPOINT=                # only needed for external mode
+LIVE_FEED_API_KEY=
+LIVE_FEED_API_KEY_HEADER=Authorization
+LIVE_FEED_API_KEY_PREFIX=Bearer
+
+# Custom stats endpoint (optional — overrides all built-in providers)
+MATCH_STATS_ENDPOINT=
+MATCH_STATS_API_KEY=
+
+# Bzzoiro Sports API (optional stats fallback)
+BZZOIRO_API_BASE_URL=https://sports.bzzoiro.com/api
+BZZOIRO_API_TOKEN=
+```
 
 ---
 
-## Deploy (Recommended)
+## API endpoints
 
-### Backend on Render
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/matches/` | All matches |
+| GET | `/api/matches/trending/` | Live → upcoming → recent (top 5) |
+| GET | `/api/matches/search/?query=Arsenal` | Search by team name |
+| GET | `/api/matches/{match_id}/` | Match detail |
+| GET | `/api/matches/{match_id}/stats/` | Box stats (shots, possession, fouls) |
+| GET | `/api/matches/{match_id}/players/` | Per-player stats |
+| GET | `/api/matches/{match_id}/deep-analytics/` | Shot map, xG, pass network (SB- only) |
+| GET | `/api/events/?match_id=...` | Event timeline |
+| GET | `/api/stream/{match_id}/` | SSE live event stream |
+| GET | `/api/feed-status/` | Current feed mode and source |
+| GET | `/api/ai-status/` | AI provider health check |
+| POST | `/api/analyze-tactics/` | Generate tactical insight |
 
-This repo now includes `render.yaml` for one-click backend deployment.
+Match ID prefixes:
+- `SB-` — StatsBomb open data (full stats, xG, pass network)
+- `FD-` — football-data.org (scores only for historical; live stats for recent fixtures)
 
-1. Push this repo to GitHub.
-2. In Render, create a new Blueprint and select this repo.
-3. Render will create:
-   - `quantgol-backend` (web service)
-   - `quantgol-postgres` (Postgres database)
-4. Set required env vars in Render:
+---
+
+## Management commands
+
+```bash
+# Sync recent + upcoming fixtures from football-data.org
+python manage.py sync_matches --competition PL PD CL SA BL1 --days 14
+
+# Seed a set of demo matches for local dev
+python manage.py seed_matches
+
+# Optional: pre-import a specific StatsBomb competition (not required — search does this automatically)
+python manage.py import_statsbomb --competition-id 11 --season-id 27   # La Liga 2015/16
+python manage.py import_statsbomb --competition-id 43 --season-id 106  # World Cup 2022
+python manage.py import_statsbomb --competition-id 55 --season-id 43   # Euro 2020
+```
+
+StatsBomb competition IDs: `11` La Liga, `2` Premier League, `16` Champions League, `43` World Cup, `55` Euros.
+
+---
+
+## Deploy
+
+### Backend → Render
+
+This repo includes `render.yaml` for one-click deployment.
+
+1. Push to GitHub
+2. In Render, create a **Blueprint** and point it at this repo
+3. Render creates a web service + Postgres database automatically
+4. Set these env vars in the Render dashboard:
    - `FOOTBALL_DATA_API_KEY`
+   - `GROQ_API_KEY`
    - `GOOGLE_API_KEY`
-   - `CORS_ALLOWED_ORIGINS` (set to your frontend URL)
-   - `CSRF_TRUSTED_ORIGINS` (set to your frontend URL)
-5. Deploy and note backend URL, e.g. `https://quantgol-backend.onrender.com`.
+   - `CORS_ALLOWED_ORIGINS` → your frontend URL
+   - `CSRF_TRUSTED_ORIGINS` → your frontend URL
+5. Note the backend URL (e.g. `https://quantgol-backend.onrender.com`)
 
-### Frontend on Vercel
+### Frontend → Vercel
 
-1. Import the same repo in Vercel.
-2. Set project root to `frontend`.
-3. Add env var:
-   - `NEXT_PUBLIC_API_BASE_URL=https://quantgol-backend.onrender.com`
-4. Deploy.
+1. Import the repo in Vercel, set root directory to `frontend`
+2. Add env var: `NEXT_PUBLIC_API_BASE_URL=https://quantgol-backend.onrender.com`
+3. Deploy
 
-### Post-deploy check
+### Post-deploy checks
 
-- `GET <backend>/api/feed-status/`
-- `GET <backend>/api/ai-status/`
-- Open frontend and verify:
-  - match search/trending loads
-  - scoreline renders
-  - AI badge shows online/offline correctly
+```
+GET /api/feed-status/   → should return {"mode": "demo", ...}
+GET /api/ai-status/     → should return {"is_ready": true}
+```
+
+---
+
+## Security note
+
+The defaults are configured for local development:
+
+```
+DEBUG=True
+ALLOWED_HOSTS=["*"]
+CORS_ALLOW_ALL_ORIGINS=True
+```
+
+Set `DEBUG=False`, restrict `ALLOWED_HOSTS`, and set `CORS_ALLOWED_ORIGINS` to your frontend domain before deploying to production. The `render.yaml` already handles this for Render deployments.
