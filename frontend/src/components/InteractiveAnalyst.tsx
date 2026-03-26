@@ -74,15 +74,40 @@ export function InteractiveAnalyst({ recentEvents }: Props) {
         })
       });
 
+      const data = await response.json();
       if (!response.ok) {
+        const serverMessage =
+          typeof data?.error === 'string' && data.error.trim().length > 0
+            ? data.error
+            : 'Analysis failed.';
+        const retryHint =
+          typeof data?.retry_after_seconds === 'number'
+            ? ` Retry in about ${data.retry_after_seconds}s.`
+            : '';
+        const composed = `${serverMessage}${retryHint}`;
+
         setIsAiOnline(false);
-        throw new Error('Analysis failed');
+        setMessages(prev => [...prev, { role: 'assistant', content: composed }]);
+        return;
       }
 
-      const data = await response.json();
       const assistantText = data.insight || data.analysis || 'No insight returned.';
-      setIsAiOnline(!assistantText.toLowerCase().includes("ai offline"));
-      setMessages(prev => [...prev, { role: 'assistant', content: assistantText }]);
+      const isDegraded = Boolean(data?.degraded);
+      const warningText =
+        typeof data?.warning === 'string' && data.warning.trim().length > 0
+          ? data.warning.trim()
+          : null;
+
+      setIsAiOnline(!isDegraded);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: isDegraded && warningText
+            ? `${assistantText}\n\nFallback mode: ${warningText}`
+            : assistantText,
+        },
+      ]);
     } catch (err) {
       console.error('Error fetching insight:', err);
       setIsAiOnline(false);

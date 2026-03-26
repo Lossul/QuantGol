@@ -19,6 +19,7 @@ export default function Home() {
   const [finderResults, setFinderResults] = useState<MatchSearchSuggestion[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const finderDateRef = useRef<HTMLInputElement | null>(null);
+  const dashboardRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch top 5 trending matches on load
   useEffect(() => {
@@ -47,6 +48,15 @@ export default function Home() {
     fetchTrending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Scroll dashboard into view when a match is selected
+  useEffect(() => {
+    if (activeMatchId && dashboardRef.current) {
+      setTimeout(() => {
+        dashboardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
+  }, [activeMatchId]);
 
   // Debounced search
   useEffect(() => {
@@ -147,7 +157,7 @@ export default function Home() {
   const isSearchActive = finderQuery.trim().length >= 2;
 
   return (
-    <main className="relative flex min-h-screen flex-col overflow-hidden bg-[#020616]">
+    <main className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#020616]">
       <div className="pointer-events-none absolute left-1/3 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
 
@@ -403,7 +413,11 @@ export default function Home() {
         </section>
 
         {/* ── Match Dashboard ── */}
-        {activeMatchId && <LiveMatchDashboard matchId={activeMatchId} />}
+        {activeMatchId && (
+          <div ref={dashboardRef}>
+            <LiveMatchDashboard matchId={activeMatchId} />
+          </div>
+        )}
       </div>
     </main>
   );

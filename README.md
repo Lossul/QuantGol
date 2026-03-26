@@ -117,6 +117,14 @@ From `backend/`:
   - `python3 manage.py seed_matches`
 - Sync fixtures from football-data.org:
   - `python3 manage.py sync_matches --competition PL PD --days 21`
+- Import StatsBomb Open Data (historical deep analytics):
+  - `python3 manage.py import_statsbomb --competition-id 2 --season-id 44 --limit 50`
+    - Example above is a StatsBomb competition/season pair (see StatsBomb open-data repo for ids).
+  - Imported matches appear as `SB-<id>` and unlock:
+    - real shot map data (`statsbomb_xg`)
+    - xG timeline
+    - pass network
+    - pressures
 
 ---
 
@@ -139,3 +147,40 @@ This repo is currently configured for local development convenience:
 - `CORS_ALLOW_ALL_ORIGINS=True`
 
 Harden these before production deployment.
+
+---
+
+## Deploy (Recommended)
+
+### Backend on Render
+
+This repo now includes `render.yaml` for one-click backend deployment.
+
+1. Push this repo to GitHub.
+2. In Render, create a new Blueprint and select this repo.
+3. Render will create:
+   - `quantgol-backend` (web service)
+   - `quantgol-postgres` (Postgres database)
+4. Set required env vars in Render:
+   - `FOOTBALL_DATA_API_KEY`
+   - `GOOGLE_API_KEY`
+   - `CORS_ALLOWED_ORIGINS` (set to your frontend URL)
+   - `CSRF_TRUSTED_ORIGINS` (set to your frontend URL)
+5. Deploy and note backend URL, e.g. `https://quantgol-backend.onrender.com`.
+
+### Frontend on Vercel
+
+1. Import the same repo in Vercel.
+2. Set project root to `frontend`.
+3. Add env var:
+   - `NEXT_PUBLIC_API_BASE_URL=https://quantgol-backend.onrender.com`
+4. Deploy.
+
+### Post-deploy check
+
+- `GET <backend>/api/feed-status/`
+- `GET <backend>/api/ai-status/`
+- Open frontend and verify:
+  - match search/trending loads
+  - scoreline renders
+  - AI badge shows online/offline correctly

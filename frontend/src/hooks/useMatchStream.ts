@@ -26,7 +26,7 @@ export function useMatchStream(matchId: string) {
 
         const match = await matchRes.json();
 
-        // Completed matches should load a full historical snapshot immediately.
+        // Completed matches: load full historical snapshot, no stream needed.
         if (match?.status === "completed") {
           const eventsRes = await fetch(`${apiBase}/api/events/?match_id=${matchId}&limit=200`);
           if (!eventsRes.ok) {
@@ -43,7 +43,18 @@ export function useMatchStream(matchId: string) {
           return;
         }
 
-        // Live/scheduled matches keep real-time streaming behavior.
+        // Scheduled matches have no events yet — don't open a stream or the
+        // demo backend will generate fake goal events and corrupt the DB score.
+        if (match?.status === "scheduled") {
+          if (!isCancelled) {
+            setEvents([]);
+            setIsConnected(false);
+            setConnectionMessage(null);
+          }
+          return;
+        }
+
+        // Live matches: real-time SSE stream.
         eventSource = new EventSource(`${apiBase}/api/stream/${matchId}/`);
 
         eventSource.onopen = () => {

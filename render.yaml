@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: quantgol-backend
+    env: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: >
+      python manage.py migrate &&
+      python manage.py collectstatic --noinput &&
+      gunicorn core.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: "False"
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: FOOTBALL_DATA_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: LIVE_FEED_MODE
+        value: demo
+      - key: DATABASE_URL
+        fromDatabase:
+          name: quantgol-postgres
+          property: connectionString
+
+databases:
+  - name: quantgol-postgres
+    databaseName: quantgol
+    plan: free

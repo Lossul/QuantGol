@@ -40,16 +40,43 @@ def _demo_event(match_id: str, current_minute: int) -> Dict[str, Any]:
 
     event_types = ["Pass", "Shot", "Goal", "Foul", "Tackle", "Interception"]
 
-    active_team = random.choice(teams)
+    rng = random.Random(f"{match_id}:{current_minute}")
+    active_team = rng.choice(teams)
     base_possession = 55.0 if active_team == teams[0] else 45.0
-    fluctuation = random.uniform(-5.0, 5.0)
+    fluctuation = rng.uniform(-5.0, 5.0)
+
+    event_type = rng.choice(event_types)
+    x_coord = None
+    y_coord = None
+    player = None
+
+    # Add deterministic shot coordinates for shot-map + xG timeline visuals.
+    if event_type in {"Shot", "Goal"}:
+        # Attack direction: home attacks right (x high), away attacks left (x low)
+        attacking_home = active_team == teams[0]
+        x_base = rng.uniform(72.0, 100.0) if attacking_home else rng.uniform(0.0, 28.0)
+        y_base = rng.uniform(18.0, 82.0)
+
+        # Goals tend to be closer to the center of goal.
+        if event_type == "Goal":
+            y_base = rng.uniform(40.0, 60.0)
+            x_base = rng.uniform(86.0, 100.0) if attacking_home else rng.uniform(0.0, 14.0)
+
+        x_coord = round(x_base, 1)
+        y_coord = round(y_base, 1)
+
+    # Lightweight player labeling for UI clarity.
+    player = f"{active_team} #{rng.randint(2, 11)}"
 
     return {
         "match_id": match_id,
         "timestamp": current_minute,
-        "event_type": random.choice(event_types),
+        "event_type": event_type,
         "team": active_team,
+        "player": player,
         "possession_stat": round(base_possession + fluctuation, 1),
+        "x_coord": x_coord,
+        "y_coord": y_coord,
     }
 
 
