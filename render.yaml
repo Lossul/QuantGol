@@ -26,6 +26,10 @@ services:
         sync: false
       - key: GOOGLE_API_KEY
         sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
       - key: GEMINI_MODEL
         value: gemini-1.5-flash
       - key: LIVE_FEED_MODE
